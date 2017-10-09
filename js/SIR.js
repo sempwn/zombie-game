@@ -1,0 +1,356 @@
+var params = {R0: 2, gamma: 1/3, S: 10000, I: 1, R: 0, dt: 0.5};
+var sparams = {R0: 1.43, gamma: 1/5, S: 10000, I: 1, R: 0, dt: 0.5};
+var maxT = 150; //100 days
+var nreps = 20; //number of replicates.
+var data = {}; //data to fit against.
+data.I = [1,1,2,2,2,3,4,3,4,6,6,6,8,9,13,11,9,11,12,14,20,19,17,24,19,18,23,24,24,28,32,39,42,49,56,59,58,68,67,77,95,100,106,122,126,123,
+    125,142,177,201,196,218,224,234,231,268,289,290,318,336,376,405,406,442,458,464,468,503,522,547,542,550,557,550,515,519,534,552,549,555,
+    546,558,549,531,520,490,469,459,467,444,433,421,418,399,388,370,354,337,342,327,332,306,297,273,263,240,233,233,225,209,197,189,183,171,
+    149,134,123,103,94,90,90,93,90,82,81,75,65,53,46,41,40,41,35,31,32,31,28,26,24,20,18,17,12,11,8,6,7,7,7,6,6];
+data.t = [];
+for(var i=0; i < data.I.length; i++){
+    data.t.push(i);
+}
+poisson = function(mean){
+    var L = Math.exp(-mean);
+    var p = 1.0;
+    var k = 0;
+
+    do {
+        k++;
+        p *= Math.random();
+    } while (p > L);
+
+    return (k - 1);
+
+}
+
+simpleSIR = function(params,T){
+  var beta = params.R0 * params.gamma;
+  var gamma = params.gamma;
+  var dt = params.dt;
+  var S0 = params.S;
+  var I0 = params.I;
+  var R0 = params.R;
+  var N = S0 + I0 + R0;
+  var Is = [I0];
+  var Ss = [S0];
+  var Rs = [R0];
+  var ts = [0];
+  var S=S0; var I=I0; var R=R0; var t=0;
+  for(var i = 0; i < T/dt; i++){
+    dS = -beta*S*I/N;
+    dR = gamma*I;
+    dI = beta*S*I/N - gamma*I;
+
+    S = S + dt*dS;
+    R = R + dt*dR;
+    I = I + dt*dI;
+    t = t + dt;
+
+    Is.push(I);
+    Rs.push(R);
+    Ss.push(S);
+    ts.push(t);
+  }
+  return {S:Ss,I:Is,R:Rs,t:ts}
+}
+
+vectorSIR = function(params,T){
+  var r = params.gamma;
+  var a = 1, b = 1, c = 1, g = 1, nu = 0.5;
+  var tau = a*a*b*c*Math.exp(-g*nu)/g;
+
+  var m = params.R0 * r/tau;
+
+  var dt = params.dt;
+  var S0 = params.S;
+  var I0 = params.I;
+  var Z0 = 0;
+  var N = S0 + I0;
+
+  I0 = I0/N;
+  S0 = S0/N;
+
+  var Is = [N*I0];
+  var Zs = [Z0];
+  var ts = [0];
+
+  var I=I0; var S=S0; var Z=Z0; var t=0;
+  for(var i = 0; i < T/dt; i++){
+    dS = -m*a*b*Z*S;
+    dI = m*a*b*Z*S - r*I;
+    dZ = a*c*I*(Math.exp(-g*nu) - Z) - g*Z;
+
+    Z = Z + dt*dZ;
+    S = S + dt*dS;
+    I = I + dt*dI;
+    t = t + dt;
+
+    Is.push(N*I);
+    Zs.push(Z);
+    ts.push(t);
+  }
+  return {I:Is,Z:Zs,t:ts}
+}
+
+multipleStochsticSIR = function(params,T,n){
+  Is = [];
+  for (var i = 0; i < n; i++){
+    res = simpleStochasticSIR(params,T);
+    Is.push(res.I);
+  }
+  return {I:Is,t:res.t}
+}
+
+simpleStochasticSIR = function(sparams,T,genData){
+ if(genData===undefined){
+     genData = false;
+ }
+  var beta = sparams.R0 * sparams.gamma;
+  var gamma = sparams.gamma;
+  var dt = params.dt;
+  var S0 = sparams.S;
+  var I0 = sparams.I;
+  var R0 = sparams.R;
+  var N = S0 + I0 + R0;
+  var Is = [I0];
+  var Ss = [S0];
+  var Rs = [R0];
+  var ts = [0];
+  var S=S0; var I=I0; var R=R0; var t=0;
+  for(var i = 0; i < T/dt; i++){
+    infected = poisson(dt*beta*S*I/N);
+    recovered = poisson(dt*gamma*I);
+
+
+    S = S - infected;
+    R = R + recovered;
+    I = I + infected - recovered;
+    t = t + dt;
+
+    S = (S<0)? 0:S;
+    I = (I<0)? 0:I;
+    R = (R<0)? 0:R;
+    if(!genData || (i % Math.floor(1/dt)) ){
+        Is.push(I);
+        Rs.push(R);
+        Ss.push(S);
+        ts.push(t);
+    }
+
+  }
+  if(genData){
+      var printOut = '[';
+      for(var i = 0; i<Is.length; i++){
+          printOut += Is[i]+',';
+      }
+      printOut += ']';
+      console.log(printOut);
+
+  }
+  return {S:Ss,I:Is,R:Rs,t:ts}
+}
+
+
+var pause = false;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function plotGraph(div,res){
+  traceI = {
+    x: res.t,
+    y: res.I,
+    name: 'model',
+    type: 'scatter'
+  };
+
+  traceData = {
+    x: data.t,
+    y: data.I,
+    name: 'data',
+    mode: 'markers',
+    type: 'scatter'
+  };
+
+  plotData = [traceI,traceData];
+
+  var layout = { //main layout format for plot.ly chart
+    autosize: true,
+    showlegend: false,
+    title: 'deterministic epidemic',
+    hovermode: 'closest',
+    textposition: 'top right',
+    xaxis: {
+      title: 'time since start of epidemic (days)',
+      showgrid: true,
+      zeroline: false
+    },
+    yaxis: {
+      title: 'number of individuals',
+      showline: false,
+      rangemode: 'tozero',
+      autorange: true,
+      zeroline: true
+    }
+  };
+
+  Plotly.newPlot(div, plotData, layout);
+}
+
+function plotStochGraph(div,res){
+  var data = [];
+  for (i=0; i<res.I.length;i++){
+    trace = {
+      x: res.t,
+      y: res.I[i],
+      mode: 'lines',
+      hoverinfo: 'none',
+      type: 'scatter',
+      line: {
+        color: 'rgb(200, 200, 200)',
+        width: 1,
+        opacity: 0.8
+      }
+    };
+    data.push(trace);
+  }
+
+  var layout = { //main layout format for plot.ly chart
+    autosize: true,
+    showlegend: false,
+    title: 'stochastic epidemic',
+    hovermode: 'closest',
+    textposition: 'top right',
+    xaxis: {
+      title: 'time since start of epidemic (days)',
+      showgrid: true,
+      zeroline: false
+    },
+    yaxis: {
+      title: 'number of individuals',
+      showline: false,
+      rangemode: 'tozero',
+      autorange: true,
+      zeroline: true
+    }
+  };
+
+  Plotly.newPlot(div, data,layout);
+}
+
+var bestScore = {mse:1/0,R0:0,gamma:0,model:''};
+function updateStatistics(params,modelOutput){
+    var mse = 0;
+    for(var i = 0; i < modelOutput.I.length; i++){
+        if(i%Math.floor(1/params.dt)==0){
+            mse += Math.pow(modelOutput.I[i] - data.I[Math.floor(i*params.dt)],2);
+        }
+    }
+
+    mse *= 1/data.I.length;
+    if(mse <= bestScore.mse){
+        bestScore.mse = mse;
+        bestScore.R0 = params.R0;
+        bestScore.gamma = params.gamma;
+        bestScore.modelName = params.modelName;
+    }
+    var table = '';
+    table+= `  <thead>
+                <tr>
+                  <th></th>
+                  <th>Model name</th>
+                  <th>R0</th>
+                  <th>Infectious period (days)</th>
+                  <th>Mean squared error</th>
+                </tr>
+              </thead>`;
+    table += '<tbody> <tr>';
+    table += '<th>Current</th>  <th>' + params.modelName + '</th>' +
+             '<th>' + params.R0 + '</th>' +
+             '<th>' + (1/params.gamma).toFixed(2) + '</th>' +
+             '<th>' + mse.toFixed(3) + '</th>' +
+             '</tr>';
+    table += '<tr>' +
+             '<th>Best</th>  <th>' + bestScore.modelName + '</th>' +
+             '<th>' + bestScore.R0 + '</th>' +
+             '<th>' + (1/bestScore.gamma).toFixed(2) + '</th>' +
+             '<th>' + bestScore.mse.toFixed(3) + '</th>' +
+             '</tr>';
+    table += '</tbody>';
+    $('#param-values').html(table);
+
+}
+
+
+
+$('#inputr0').slider({
+	formatter: function(value) {
+		return 'R0: ' + value;
+	}
+}).on('change', function(slideEvt){
+  params.R0 = slideEvt.value.newValue;
+  var modelOutput = params.model(params,maxT);
+  plotGraph('SIRGraphDiv',modelOutput);
+  updateStatistics(params,modelOutput);
+});
+
+$('#inputgamma').slider({
+	formatter: function(value) {
+		return 'rate of recovery: ' + value + ' days';
+	}
+}).on('change',function(slideEvt){
+  params.gamma = 1/slideEvt.value.newValue;
+  modelOutput = params.model(params,maxT);
+  plotGraph('SIRGraphDiv',modelOutput);
+  updateStatistics(params,modelOutput);
+});
+
+$('#modelSelect').on('change', function() {
+    if(this.value=='direct'){
+        params.modelName = 'direct-contact';
+        params.model = simpleSIR;
+    } else {
+        params.modelName = 'vector-borne';
+        params.model = vectorSIR;
+    }
+    modelOutput = params.model(params,maxT);
+    plotGraph('SIRGraphDiv',modelOutput);
+    updateStatistics(params,modelOutput);
+})
+
+
+
+window.onload = function () {
+    params.modelName = 'direct-contact';
+    params.model = simpleSIR;
+    var output = simpleSIR(sparams,maxT);
+    data.I = [];
+    for (var i = 0; i < output.I.length; i++){
+        if((i%Math.floor(1/params.dt))==0){
+            data.I.push(poisson(output.I[i]));
+        }
+    }
+    //data = simpleStochasticSIR(sparams,maxT,true);
+    modelOutput = params.model(params,maxT);
+    plotGraph('SIRGraphDiv',modelOutput);
+    updateStatistics(params,modelOutput);
+    //plotStochGraph('StochSIRGraphDiv',multipleStochsticSIR(sparams,maxT,nreps));
+}
