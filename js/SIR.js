@@ -194,8 +194,8 @@ function plotGraph(div,res){
 
   var layout = { //main layout format for plot.ly chart
     autosize: true,
-    showlegend: false,
-    title: 'deterministic epidemic',
+    showlegend: true,
+    title: 'Epidemic curve',
     hovermode: 'closest',
     textposition: 'top right',
     xaxis: {
@@ -235,7 +235,7 @@ function plotStochGraph(div,res){
 
   var layout = { //main layout format for plot.ly chart
     autosize: true,
-    showlegend: false,
+    showlegend: true,
     title: 'stochastic epidemic',
     hovermode: 'closest',
     textposition: 'top right',

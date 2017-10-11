@@ -83,7 +83,11 @@ function Simulation(map){
         this.statistics.infs = infs;
         d3.select('#stats').text('Outbreak of ' + Math.floor(infs) + ' zombies');
         this.graph_data[0].x.push(this.t); this.graph_data[0].y.push(infs);
-        Plotly.newPlot('graph-plot', this.graph_data);
+        Plotly.extendTraces('graph-plot', {
+            x: [[this.t]],
+            y: [[infs]]
+        },[0]);
+        //Plotly.newPlot('graph-plot', this.graph_data);
         //console.log('Infected: ',infs);
     }
     this.EulerStepSI = function(i,j){
@@ -363,6 +367,7 @@ d3.select('#area-select').on('change',function(value){
 d3.select('#reset').on('click',function(){
     sim.initialise();
     sim.graph_data = [{x:[], y:[],type: 'scatter'}];
+    Plotly.newPlot('graph-plot', sim.graph_data);
 });
 
 d3.select('#run').on('click',function(){
@@ -416,7 +421,10 @@ function resetGraph(){
   t = 0;
   data = [traceS, traceI];
 
-  Plotly.newPlot('graph-plot', data);
+  Plotly.plot('graph-plot', data);
 }
 
 resetGraph();
+$('#modalButton').on('click',function(){
+        $('#myModal').modal('toggle');
+});
