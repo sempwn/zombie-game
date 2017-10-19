@@ -361,7 +361,7 @@ $('#inputgamma').slider({
 }).on('change',function(slideEvt){
   params.gamma = 1/slideEvt.value.newValue;
   modelOutput = params.model(params,maxT);
-  $('#inputgamma-label').text('Infectious period: '+params.gamma.toFixed(2) + ' days');
+  $('#inputgamma-label').text('Infectious period: '+ slideEvt.value.newValue.toFixed(2) + ' days');
   plotGraph('SIRGraphDiv',modelOutput);
   updateStatistics(params,modelOutput);
 });
