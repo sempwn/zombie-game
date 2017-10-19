@@ -30,9 +30,12 @@ function copyArray(array,zero){
 function Simulation(map){
     this.initialise = function(){
         this.S = copyArray(map.dataset);
+        this.N = copyArray(map.dataset);
+        this.R = copyArray(map.dataset,true);
         this.I = copyArray(map.dataset,true);
         this.statistics = {}; //store statistics such as total infected here.
         this.infLocs = [];
+        this.params.intervention = {};
         for(var i = 0; i < this.S.length; i++){
                 for(var j = 0; j < this.S[0].length; j++){
                     if (this.S[i][j] > 1){
@@ -41,6 +44,14 @@ function Simulation(map){
                 }
         }
     }
+    this.params = {beta: 10.0, gamma: 1/3.0, tau: 0.01, sim_speed: 10};
+    this.params['intervention'] = {};
+    this.t = 0;
+    this.graph_data = [{x:[], y:[],type: 'scatter'}];
+    this.dt = 0.0005;
+    this.map = map;
+    this.play = false;
+
 
     this.initialise();
     //var i = 190,j=500;
@@ -58,18 +69,14 @@ function Simulation(map){
     }
 
 
-    this.params = {beta: 10.0, gamma: 1/3.0, tau: 0.01, sim_speed: 10};
-    this.t = 0;
-    this.graph_data = [{x:[], y:[],type: 'scatter'}];
-    this.dt = 0.0005;
-    this.map = map;
-    this.play = false;
+
 
     function neighbourhoodCalc(array,i,j){
         return array[i+1][j] + array[i-1][j] +
                array[i][j-1] + array[i][j+1] +
                array[i+1][j-1] + array[i+1][j+1] +
                array[i-1][j-1] + array[i-1][j+1] -8*array[i][j];
+               -4*array[i][j];
     }
 
 
@@ -91,29 +98,33 @@ function Simulation(map){
         //console.log('Infected: ',infs);
     }
     this.EulerStepSI = function(i,j){
-        var infs = this.params.beta*this.S[i][j]*this.I[i][j];
+        var infs = this.params.beta*this.S[i][j]*this.I[i][j]/this.N[i][j];
         return [
                 this.S[i][j] - this.dt * infs,
-                this.I[i][j] + this.dt * (infs - this.params.gamma*this.I[i][j] + this.params.tau*neighbourhoodCalc(this.I,i,j))
+                this.I[i][j] + this.dt * (infs - this.params.gamma*this.I[i][j] + this.params.tau*neighbourhoodCalc(this.I,i,j)),
+                this.R[i][j] + this.dt*this.params.gamma*this.I[i][j]
                ];
     }
 
     this.stepForward = function(){
-        var bS = copyArray(this.S),bI = copyArray(this.I);
+        var bS = copyArray(this.S),
+            bI = copyArray(this.I),
+            bR = copyArray(this.R);
         this.t += this.dt;
         for(loc in this.infLocs){
                 var i = this.infLocs[loc][0],j=this.infLocs[loc][1];
                 var res = this.EulerStepSI(i,j);
-                bS[i][j] = res[0]; bI[i][j] = res[1];
+                bS[i][j] = res[0]; bI[i][j] = res[1]; bR[i][j] = res[2];
         }
 
-        this.S = bS; this.I = bI;
+        this.S = bS; this.I = bI; this.R = bR;
         this.recordStatistics();
     }
 
     this.drawMap = function(){
         this.map.S = this.S;
         this.map.I = this.I;
+        this.map.R = this.R;
         this.map.drawMap();
     }
 
@@ -191,14 +202,15 @@ function Map(data,map_id){
 
     this.canvasWidth  = this.canvas.width;
     this.canvasHeight = this.canvas.height;
-    this.xscale = 2.;
-    this.yscale = 2.;
+    this.xscale = Math.round($(map_id).parent()[0].clientWidth/data[0].length);
+    this.yscale = Math.round($(map_id).parent()[0].clientWidth/data[1].length);
 
     this.ctx = this.canvas.getContext('2d');
     this.imageData = this.ctx.getImageData(0, 0, this.canvasWidth, this.canvasHeight);
 
     this.S = copyArray(this.dataset);
     this.I = copyArray(this.dataset,true);
+    this.R = copyArray(this.dataset,true);
 
     this.loadImage = function(data){
         this.dataset = data;
@@ -214,6 +226,7 @@ function Map(data,map_id){
 
         this.S = copyArray(this.dataset);
         this.I = copyArray(this.dataset,true);
+        this.R = copyArray(this.dataset,true);
 
     }
 
@@ -236,11 +249,13 @@ function Map(data,map_id){
 
                 var value = this.S[yy][xx];
                 var inf = this.I[yy][xx];
+                var rec = this.R[yy][xx];
+                //orange code: 	(255, 127, 0)
                 data[y * this.canvasWidth + x] =
                     (255   << 24) |    // alpha
-                    (value << 16) |    // blue
-                    (value <<  8) |    // green
-                    value+inf;            // red
+                    (value + Math.floor(rec/2) << 16) |    // blue
+                    (value  <<  8) |    // green
+                    value + inf + rec;            // red
             }
         }
 
@@ -273,8 +288,8 @@ function Map(data,map_id){
                 xx = Math.floor(mouseX/obj.xscale);
             d3.select('#tooltip')
                 .style('opacity', 0.8)
-                .style('top', d3.event.pageY + 5 + 'px')
-                .style('left', d3.event.pageX + 5 + 'px')
+                .style('top', mouseY + 5 + 'px') //d3.event.pageY
+                .style('left', mouseX + 5 + 'px') //d3.event.pageX
                 .html(Math.floor(obj.I[yy][xx]) + ' zombies');//this.I[mouseY][mouseX]);
                 //console.log(obj.I[mouseY][mouseX]);
 
@@ -372,23 +387,46 @@ d3.select('#reset').on('click',function(){
 
 d3.select('#run').on('click',function(){
     if(sim.play){
+        d3.select('#run').html('<i class="fa fa-play-circle"></i> Run');
         sim.play = false;
     } else {
+        d3.select('#run').html('<i class="fa fa-pause-circle"></i> Pause');
         sim.play = true;
     }
+});
+
+d3.selectAll('.btn-intervention').on('click',function(d){
+    var intlabel = { 'travel':'ban air travel','vaccinate':'vaccinate population',
+                      'treat':'treat infected population' }
+    console.log(this.getAttribute("data-int"));
+    var intervention = this.getAttribute("data-int");
+    d3.select("#begin-intervention").attr("data-int",intervention);
+    d3.select("#intModal-title").text("Set intervention: "+ intlabel[intervention]);
+    $('#intModal').modal('show');
+});
+
+d3.select('#begin-intervention').on('click',function(d){
+    var intervention = this.getAttribute("data-int");
+    sim.params.intervention[intervention] = intslider.getValue()/100;
+    console.log(sim.params.intervention);
+
 });
 
 
 
 var bslider = $('#beta').slider()
 		.on('slide', function(){
-        sim.params['beta'] =  bslider.getValue();
+        var R0 = bslider.getValue();
+        $('#beta-label').text('R0: '+R0.toFixed(2));
+        sim.params['beta'] =  R0*sim.params['gamma'];
         })
 		.data('slider');
 
 var gslider = $('#gamma').slider()
 		.on('slide', function(){
-        sim.params['gamma'] =  gslider.getValue();
+            var gamma = 1/gslider.getValue();
+            $('#gamma-label').text('Infectious period: '+ gslider.getValue().toFixed(2) + ' days');
+            sim.params['gamma'] =  gamma;
         })
 		.data('slider');
 
@@ -404,6 +442,13 @@ var tauslider = $('#tau').slider()
         console.log(sim.params['tau']);
         })
 		.data('slider');
+
+var intslider = $('#int-slider').slider()
+        .on('slide', function(){
+            //sim.params.intervention['tau'] = intslider.getValue()/100;
+            console.log(intslider.getValue()/100);
+        })
+        .data('slider');
 
 function resetGraph(){
   traceS = {

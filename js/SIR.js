@@ -56,6 +56,37 @@ simpleSIR = function(params,T){
   return {S:Ss,I:Is,R:Rs,t:ts}
 }
 
+frequencySIR = function(params,T){
+  var beta = params.R0 * params.gamma;
+  var gamma = params.gamma;
+  var dt = params.dt;
+  var S0 = params.S;
+  var I0 = params.I;
+  var R0 = params.R;
+  var N = S0 + I0 + R0;
+  var Is = [I0];
+  var Ss = [S0];
+  var Rs = [R0];
+  var ts = [0];
+  var S=S0; var I=I0; var R=R0; var t=0;
+  for(var i = 0; i < T/dt; i++){
+    dS = -beta*S*I;
+    dR = gamma*I;
+    dI = beta*S*I - gamma*I;
+
+    S = S + dt*dS;
+    R = R + dt*dR;
+    I = I + dt*dI;
+    t = t + dt;
+
+    Is.push(I);
+    Rs.push(R);
+    Ss.push(S);
+    ts.push(t);
+  }
+  return {S:Ss,I:Is,R:Rs,t:ts}
+}
+
 vectorSIR = function(params,T){
   var r = params.gamma;
   var a = 1, b = 1, c = 1, g = 1, nu = 0.5;
@@ -256,7 +287,9 @@ function plotStochGraph(div,res){
   Plotly.newPlot(div, data,layout);
 }
 
-var bestScore = {mse:1/0,R0:0,gamma:0,model:''};
+var bestScore = {};
+bestScore['direct-contact'] = {mse:1/0,R0:0,gamma:0,model:''};
+bestScore['vector-borne'] = {mse:1/0,R0:0,gamma:0,model:''};
 function updateStatistics(params,modelOutput){
     var mse = 0;
     for(var i = 0; i < modelOutput.I.length; i++){
@@ -266,15 +299,15 @@ function updateStatistics(params,modelOutput){
     }
 
     mse *= 1/data.I.length;
-    if(mse <= bestScore.mse){
-        bestScore.mse = mse;
-        bestScore.R0 = params.R0;
-        bestScore.gamma = params.gamma;
-        bestScore.modelName = params.modelName;
+    if(mse <= bestScore[params.modelName].mse){
+        bestScore[params.modelName].mse = mse;
+        bestScore[params.modelName].R0 = params.R0;
+        bestScore[params.modelName].gamma = params.gamma;
+        bestScore[params.modelName].modelName = params.modelName;
     }
     var table = '';
     table+= `  <thead>
-                <tr>
+                <tr data-toggle="collapse" data-target=".accordion" class="clickable">
                   <th></th>
                   <th>Model name</th>
                   <th>R0</th>
@@ -282,18 +315,26 @@ function updateStatistics(params,modelOutput){
                   <th>Mean squared error</th>
                 </tr>
               </thead>`;
-    table += '<tbody> <tr>';
+    table += '<tbody> <tr class="accordion collapse">';
     table += '<th>Current</th>  <th>' + params.modelName + '</th>' +
              '<th>' + params.R0 + '</th>' +
              '<th>' + (1/params.gamma).toFixed(2) + '</th>' +
              '<th>' + mse.toFixed(3) + '</th>' +
              '</tr>';
-    table += '<tr>' +
-             '<th>Best</th>  <th>' + bestScore.modelName + '</th>' +
-             '<th>' + bestScore.R0 + '</th>' +
-             '<th>' + (1/bestScore.gamma).toFixed(2) + '</th>' +
-             '<th>' + bestScore.mse.toFixed(3) + '</th>' +
+    table += '<tr class="accordion collapse">' +
+             '<th>Best</th>  <th>' + bestScore['direct-contact'].modelName + '</th>' +
+             '<th>' + bestScore['direct-contact'].R0 + '</th>' +
+             '<th>' + (1/bestScore['direct-contact'].gamma).toFixed(2) + '</th>' +
+             '<th>' + bestScore['direct-contact'].mse.toFixed(3) + '</th>' +
              '</tr>';
+    if(bestScore['vector-borne'].modelName){
+         table += '<tr class="accordion collapse">' +
+                  '<th>Best</th>  <th>' + bestScore['vector-borne'].modelName + '</th>' +
+                  '<th>' + bestScore['vector-borne'].R0 + '</th>' +
+                  '<th>' + (1/bestScore['vector-borne'].gamma).toFixed(2) + '</th>' +
+                  '<th>' + bestScore['vector-borne'].mse.toFixed(3) + '</th>' +
+                  '</tr>';
+    }
     table += '</tbody>';
     $('#param-values').html(table);
 
@@ -307,6 +348,7 @@ $('#inputr0').slider({
 	}
 }).on('change', function(slideEvt){
   params.R0 = slideEvt.value.newValue;
+$('#inputr0-label').text('R0: '+params.R0.toFixed(2));
   var modelOutput = params.model(params,maxT);
   plotGraph('SIRGraphDiv',modelOutput);
   updateStatistics(params,modelOutput);
@@ -319,6 +361,7 @@ $('#inputgamma').slider({
 }).on('change',function(slideEvt){
   params.gamma = 1/slideEvt.value.newValue;
   modelOutput = params.model(params,maxT);
+  $('#inputgamma-label').text('Infectious period: '+params.gamma.toFixed(2) + ' days');
   plotGraph('SIRGraphDiv',modelOutput);
   updateStatistics(params,modelOutput);
 });
@@ -327,9 +370,12 @@ $('#modelSelect').on('change', function() {
     if(this.value=='direct'){
         params.modelName = 'direct-contact';
         params.model = simpleSIR;
-    } else {
+    } else if (this.value=='vector'){
         params.modelName = 'vector-borne';
         params.model = vectorSIR;
+    } else {
+        params.modelName = 'frequency';
+        params.model = frequencySIR;
     }
     modelOutput = params.model(params,maxT);
     plotGraph('SIRGraphDiv',modelOutput);
