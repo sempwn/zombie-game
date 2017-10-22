@@ -1,5 +1,5 @@
-var params = {R0: 2, gamma: 1/3, S: 10000, I: 1, R: 0, dt: 0.5};
-var sparams = {R0: 1.43, gamma: 1/5, S: 10000, I: 1, R: 0, dt: 0.5};
+var params = {R0: 2, gamma: 1/3, S: 10000, I: 1, R: 0, dt: 0.01};
+var sparams = {R0: 1.43, gamma: 1/5, S: 10000, I: 1, R: 0, dt: 1.0};
 var maxT = 150; //100 days
 var nreps = 20; //number of replicates.
 var data = {}; //data to fit against.
@@ -89,7 +89,7 @@ frequencySIR = function(params,T){
 
 vectorSIR = function(params,T){
   var r = params.gamma;
-  var a = 1, b = 1, c = 1, g = 1, nu = 0.5;
+  var a = 1, b = 1/10., c = 5., g = 1, nu = 0.5;
   var tau = a*a*b*c*Math.exp(-g*nu)/g;
 
   var m = params.R0 * r/tau;
@@ -123,6 +123,44 @@ vectorSIR = function(params,T){
     ts.push(t);
   }
   return {I:Is,Z:Zs,t:ts}
+}
+
+SEIR = function(params,T){
+    var beta = params.R0 * params.gamma;
+    var gamma = params.gamma;
+    var dt = 0.01;
+    var k = 1/20.;
+    var S0 = params.S;
+    var I0 = params.I;
+    var E0 = 0;
+    var R0 = params.R;
+    var N = S0 + I0 + R0;
+    var Is = [I0];
+    var Ss = [S0];
+    var Es = [E0];
+    var Rs = [R0];
+    var ts = [0];
+    var S=S0; var E = E0; var I=I0; var R=R0; var t=0;
+    for(var i = 0; i < T/dt; i++){
+      dS = -beta*S*I/N;
+      dE = beta*S*I/N - k*E;
+      dI = k*E - gamma*I;
+      dR = gamma*I;
+
+      S = S + dt*dS;
+      I = I + dt*dI;
+      E = E + dt*dE;
+      R = R + dt*dR;
+
+      t = t + dt;
+
+      Is.push(I);
+      Rs.push(R);
+      Ss.push(S);
+      Es.push(E);
+      ts.push(t);
+    }
+    return {S:Ss,I:Is,E:Es,R:Rs,t:ts}
 }
 
 multipleStochsticSIR = function(params,T,n){
@@ -290,6 +328,7 @@ function plotStochGraph(div,res){
 var bestScore = {};
 bestScore['direct-contact'] = {mse:1/0,R0:0,gamma:0,model:''};
 bestScore['vector-borne'] = {mse:1/0,R0:0,gamma:0,model:''};
+bestScore['latent-stage'] = {mse:1/0,R0:0,gamma:0,model:''};
 function updateStatistics(params,modelOutput){
     var mse = 0;
     for(var i = 0; i < modelOutput.I.length; i++){
@@ -335,6 +374,15 @@ function updateStatistics(params,modelOutput){
                   '<th>' + bestScore['vector-borne'].mse.toFixed(3) + '</th>' +
                   '</tr>';
     }
+
+    if(bestScore['latent-stage'].modelName){
+         table += '<tr class="accordion collapse">' +
+                  '<th>Best</th>  <th>' + bestScore['latent-stage'].modelName + '</th>' +
+                  '<th>' + bestScore['latent-stage'].R0 + '</th>' +
+                  '<th>' + (1/bestScore['latent-stage'].gamma).toFixed(2) + '</th>' +
+                  '<th>' + bestScore['latent-stage'].mse.toFixed(3) + '</th>' +
+                  '</tr>';
+    }
     table += '</tbody>';
     $('#param-values').html(table);
 
@@ -373,6 +421,10 @@ $('#modelSelect').on('change', function() {
     } else if (this.value=='vector'){
         params.modelName = 'vector-borne';
         params.model = vectorSIR;
+    } else if (this.value=='latent'){
+        params.modelName = 'latent-stage';
+        params.model = SEIR;
+
     } else {
         params.modelName = 'frequency';
         params.model = frequencySIR;
@@ -390,7 +442,7 @@ window.onload = function () {
     var output = simpleSIR(sparams,maxT);
     data.I = [];
     for (var i = 0; i < output.I.length; i++){
-        if((i%Math.floor(1/params.dt))==0){
+        if((i%Math.floor(1/sparams.dt))==0){
             data.I.push(poisson(output.I[i]));
         }
     }

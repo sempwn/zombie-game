@@ -6,6 +6,25 @@ function ImageItem(src) {
   this.image.src = src;
 }
 
+function formatDate(d) {
+    var month = '' + (d.getMonth() + 1),
+        day = '' + d.getDate(),
+        year = d.getFullYear(),
+        hour = d.getHours(),
+        minute = d.getMinutes(),
+        second = d.getSeconds();
+
+    if (month.length < 2) month = '0' + month;
+    if (day.length < 2) day = '0' + day;
+    if (hour.length < 2) hour = '0' + hour;
+    if (minute.length < 2) minute = '0' + minute;
+    if (second.length < 2) second = '0' + second;
+
+    var result = [year, month, day].join('-');
+    result += ' ' + [hour,minute,second].join(':');
+    return result;
+}
+
 function convertImageArray(img){
     return Array.from(img.data)
 }
@@ -36,6 +55,10 @@ function Simulation(map){
         this.statistics = {}; //store statistics such as total infected here.
         this.infLocs = [];
         this.params.intervention = {};
+        this.t = 0;
+        this.params.vr = 0.;
+        this.params.int = 0.;
+        this.params.ptravel = 0.;
         for(var i = 0; i < this.S.length; i++){
                 for(var j = 0; j < this.S[0].length; j++){
                     if (this.S[i][j] > 1){
@@ -44,9 +67,10 @@ function Simulation(map){
                 }
         }
     }
-    this.params = {beta: 10.0, gamma: 1/3.0, tau: 0.01, sim_speed: 10};
+    this.params = {beta: 1.0, gamma: 1/3.0, tau: 0.0001,
+                   vr: 0.0, int: 0.0, ptravel: 0.0, sim_speed: 10};
     this.params['intervention'] = {};
-    this.t = 0;
+
     this.graph_data = [{x:[], y:[],type: 'scatter'}];
     this.dt = 0.0005;
     this.map = map;
@@ -79,6 +103,19 @@ function Simulation(map){
                -4*array[i][j];
     }
 
+    this.runIntervention = function(intervention){
+        var coverage = this.params.intervention[intervention] || 0;
+        if(intervention=='vaccinate'){
+            this.params.vr = coverage;
+        }else if(intervention=='treat'){
+            this.params.int = coverage;
+        }else if(intervention=='travel'){
+            this.params.ptravel = coverage;
+        }else{
+
+        }
+    }
+
 
 
     this.recordStatistics = function(){
@@ -89,6 +126,9 @@ function Simulation(map){
         }
         this.statistics.infs = infs;
         d3.select('#stats').text('Outbreak of ' + Math.floor(infs) + ' zombies');
+        //turn time into date
+        //var d1 = Date.parse("27 October 2017");
+        //var date = formatDate(new Date(d1 + 1000*60*60*24*this.t));
         this.graph_data[0].x.push(this.t); this.graph_data[0].y.push(infs);
         Plotly.extendTraces('graph-plot', {
             x: [[this.t]],
@@ -98,11 +138,16 @@ function Simulation(map){
         //console.log('Infected: ',infs);
     }
     this.EulerStepSI = function(i,j){
+        var p = this.params;
         var infs = this.params.beta*this.S[i][j]*this.I[i][j]/this.N[i][j];
+        var dS = -infs * (1 - p.vr);
+        var dI = infs * (1-p.vr) - p.gamma*(1/(1-1e-10-p.int))*this.I[i][j] + p.tau*(1-p.ptravel)*neighbourhoodCalc(this.I,i,j);
+        var dR = p.gamma*this.I[i][j];
+
         return [
-                this.S[i][j] - this.dt * infs,
-                this.I[i][j] + this.dt * (infs - this.params.gamma*this.I[i][j] + this.params.tau*neighbourhoodCalc(this.I,i,j)),
-                this.R[i][j] + this.dt*this.params.gamma*this.I[i][j]
+                this.S[i][j] + this.dt * dS,
+                this.I[i][j] + this.dt * dI,
+                this.R[i][j] + this.dt * dR
                ];
     }
 
@@ -111,6 +156,7 @@ function Simulation(map){
             bI = copyArray(this.I),
             bR = copyArray(this.R);
         this.t += this.dt;
+
         for(loc in this.infLocs){
                 var i = this.infLocs[loc][0],j=this.infLocs[loc][1];
                 var res = this.EulerStepSI(i,j);
@@ -253,8 +299,8 @@ function Map(data,map_id){
                 //orange code: 	(255, 127, 0)
                 data[y * this.canvasWidth + x] =
                     (255   << 24) |    // alpha
-                    (value + Math.floor(rec/2) << 16) |    // blue
-                    (value  <<  8) |    // green
+                    (value  << 16) |    // blue
+                    (value  + Math.floor(rec/2) <<  8) |    // green
                     value + inf + rec;            // red
             }
         }
@@ -381,8 +427,17 @@ d3.select('#area-select').on('change',function(value){
 
 d3.select('#reset').on('click',function(){
     sim.initialise();
-    sim.graph_data = [{x:[], y:[],type: 'scatter'}];
-    Plotly.newPlot('graph-plot', sim.graph_data);
+    sim.graph_data = [{x:[], y:[],  mode: 'lines',type: 'scatter'}];
+    var layout = {
+          title: '',
+          xaxis: {
+            title: 'Days since start of epidemic'
+          },
+          yaxis: {
+            title: 'No. infected'
+          }
+        };
+    Plotly.newPlot('graph-plot', sim.graph_data,layout);
 });
 
 d3.select('#run').on('click',function(){
@@ -408,6 +463,7 @@ d3.selectAll('.btn-intervention').on('click',function(d){
 d3.select('#begin-intervention').on('click',function(d){
     var intervention = this.getAttribute("data-int");
     sim.params.intervention[intervention] = intslider.getValue()/100;
+    sim.runIntervention(intervention);
     console.log(sim.params.intervention);
 
 });
@@ -415,7 +471,7 @@ d3.select('#begin-intervention').on('click',function(d){
 
 
 var bslider = $('#beta').slider()
-		.on('slide', function(){
+		.on('change', function(){
         var R0 = bslider.getValue();
         $('#beta-label').text('R0: '+R0.toFixed(2));
         sim.params['beta'] =  R0*sim.params['gamma'];
@@ -423,7 +479,7 @@ var bslider = $('#beta').slider()
 		.data('slider');
 
 var gslider = $('#gamma').slider()
-		.on('slide', function(){
+		.on('change', function(){
             var gamma = 1/gslider.getValue();
             $('#gamma-label').text('Infectious period: '+ gslider.getValue().toFixed(2) + ' days');
             sim.params['gamma'] =  gamma;
@@ -431,13 +487,13 @@ var gslider = $('#gamma').slider()
 		.data('slider');
 
 var tslider = $('#sim-speed').slider()
-		.on('slide', function(){
+		.on('change', function(){
         sim.dt =  tslider.getValue();
         })
 		.data('slider');
 
 var tauslider = $('#tau').slider()
-		.on('slide', function(){
+		.on('change', function(){
         sim.params['tau'] =  Math.pow(2,tauslider.getValue());
         console.log(sim.params['tau']);
         })
@@ -461,12 +517,22 @@ function resetGraph(){
     x: [],
     y: [],
     name: 'Infected',
+    mode: 'lines',
     type: 'scatter'
   };
   t = 0;
   data = [traceS, traceI];
+  var layout = {
+        title: '',
+        xaxis: {
+          title: 'Days since start of epidemic'
+        },
+        yaxis: {
+          title: 'No. infected'
+        }
+      };
 
-  Plotly.plot('graph-plot', data);
+  Plotly.plot('graph-plot', data,layout);
 }
 
 resetGraph();
