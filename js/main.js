@@ -87,7 +87,7 @@ function Simulation(map){
                 }
         }
     }
-    this.params = {beta: 1.0, gamma: 1/10.0, tau: 1e-2,
+    this.params = {beta: 1.0, gamma: 1/10.0, tau: 1e-2, imp: 0.01,
                    vr: 0.0, int: 0.0, ptravel: 0.0, sim_speed: 10};
     var R0 = 8;
     this.params.beta = R0*this.params.gamma;
@@ -159,11 +159,17 @@ function Simulation(map){
         //Plotly.newPlot('graph-plot', this.graph_data);
         //console.log('Infected: ',infs);
     }
+    this.importation = function(){
+        var loc = Math.floor(Math.random()*this.infLocs.length);
+        var inf = this.I[this.infLocs[loc][0]][this.infLocs[loc][1]];
+        return inf;
+    }
     this.EulerStepSI = function(i,j){
         var p = this.params;
         var infs = this.params.beta*this.S[i][j]*this.I[i][j]/this.N[i][j];
+        var importation = (Math.random()<this.dt*1E-4*(1-p.ptravel))? p.imp*this.importation() : 0;
         var dS = -infs * (1 - p.vr);
-        var dI = infs * (1-p.vr) - p.gamma*(1/(1-1e-10-p.int))*this.I[i][j] + p.tau*(1-p.ptravel)*neighbourhoodCalc(this.I,i,j);
+        var dI = importation + infs * (1-p.vr) - p.gamma*(1/(1-1e-10-p.int))*this.I[i][j] + p.tau*neighbourhoodCalc(this.I,i,j);
         var dR = p.gamma*this.I[i][j];
 
         return [
@@ -192,6 +198,7 @@ function Simulation(map){
     this.drawMap = function(){
         this.map.S = this.S;
         this.map.I = this.I;
+        this.map.N = this.N;
         this.map.R = this.R;
         this.map.drawMap();
     }
@@ -302,6 +309,7 @@ function Map(data,map_id){
     this.imageData = this.ctx.getImageData(0, 0, this.canvasWidth, this.canvasHeight);
 
     this.S = copyArray(this.dataset);
+    this.N = copyArray(this.dataset);
     this.I = copyArray(this.dataset,true);
     this.R = copyArray(this.dataset,true);
 
@@ -318,6 +326,7 @@ function Map(data,map_id){
         this.imageData = this.ctx.getImageData(0, 0, this.canvasWidth, this.canvasHeight);
 
         this.S = copyArray(this.dataset);
+        this.N = copyArray(this.dataset);
         this.I = copyArray(this.dataset,true);
         this.R = copyArray(this.dataset,true);
 
@@ -340,18 +349,33 @@ function Map(data,map_id){
                 var yy = Math.floor(y),
                     xx = Math.floor(x);
 
-                var value = this.S[yy][xx];
-                var inf = this.I[yy][xx];
-                var rec = this.R[yy][xx];
+                var value = Math.floor(this.S[yy][xx]);
+                var inf = Math.floor(this.I[yy][xx]);
+                var rec = Math.floor(this.R[yy][xx]);
                 //orange code: 	(255, 127, 0)
                 var ccol = popColor[parseInt(2*inf+2*rec)];
                 data[y * this.canvasWidth + x] =
                     (255   << 24) |    // alpha
-                    (parseInt(value) + ccol.b  << 16) |    // blue
-                    (parseInt(value) + ccol.g  <<  8) |    // green
-                     parseInt(value)  + ccol.r;            // red
+                    (parseInt(value + ccol.b)  << 16) |    // blue
+                    (parseInt(value + ccol.g)  <<  8) |    // green
+                     parseInt(value  + ccol.r);            // red
             }
         }
+
+        /* update mouse */
+
+        var xx = this.mouseX || 0;
+        var yy = this.mouseY || 0;
+        var value = Math.floor(this.S[yy][xx]);
+        var inf = Math.floor(this.I[yy][xx]);
+        var rec = Math.floor(this.R[yy][xx]);
+        //orange code: 	(255, 127, 0)
+        var ccol = popColor[parseInt(2*inf+2*rec)];
+        d3.select('#tooltip')
+            .html(this.S[yy][xx].toFixed(0) + ' susceptible\n' +
+                  this.I[yy][xx].toFixed(0) + ' zombies\n' +
+                  this.R[yy][xx].toFixed(0) + ' recovered\n');//this.I[mouseY][mouseX]);
+
 
         this.imageData.data.set(buf8);
 
@@ -380,6 +404,8 @@ function Map(data,map_id){
             // Show the tooltip only when there is nodeData found by the mouse
             var yy = Math.floor(mouseY/obj.yscale),
                 xx = Math.floor(mouseX/obj.xscale);
+            obj.mouseX = xx;
+            obj.mouseY = yy;
             d3.select('#tooltip')
                 .style('opacity', 0.8)
                 .style('top', mouseY + 5 + 'px') //d3.event.pageY
