@@ -46,10 +46,30 @@ function copyArray(array,zero){
 
 }
 
+function fixPopulation(S){
+    var total_val = 0;
+    var pop_size = 4E6;
+    for(var i = 0; i < S.length; i ++){
+        for(var j = 0; j < S[0].length; j ++){
+            total_val += S[i][j];
+        }
+    }
+
+    var factor = pop_size/total_val;
+    for(var i = 0; i < S.length; i ++){
+        for(var j = 0; j < S[0].length; j ++){
+            S[i][j] = S[i][j]*factor;
+        }
+    }
+    return S;
+}
+
 function Simulation(map){
     this.initialise = function(){
         this.S = copyArray(map.dataset);
+        //this.S = fixPopulation(this.S);
         this.N = copyArray(map.dataset);
+        //this.N = fixPopulation(this.N);
         this.R = copyArray(map.dataset,true);
         this.I = copyArray(map.dataset,true);
         this.statistics = {}; //store statistics such as total infected here.
@@ -67,12 +87,14 @@ function Simulation(map){
                 }
         }
     }
-    this.params = {beta: 1.0, gamma: 1/3.0, tau: 0.0001,
+    this.params = {beta: 1.0, gamma: 1/10.0, tau: 1e-2,
                    vr: 0.0, int: 0.0, ptravel: 0.0, sim_speed: 10};
+    var R0 = 8;
+    this.params.beta = R0*this.params.gamma;
     this.params['intervention'] = {};
 
     this.graph_data = [{x:[], y:[],type: 'scatter'}];
-    this.dt = 0.0005;
+    this.dt = 0.05;
     this.map = map;
     this.play = false;
 
@@ -202,7 +224,32 @@ function Simulation(map){
 
 }
 
+function colCalc(){
+    function hexToRgb(hex) {
+        // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+        var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+            return r + r + g + g + b + b;
+        });
 
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    var color = d3.scale.linear().domain([1,200])
+                .interpolate(d3.interpolateHcl)
+                .range([d3.rgb("#007AFF"), d3.rgb('#FFF500')]);
+    var arr = [];
+    for(var i = 0; i< 500; i++){
+        arr.push(hexToRgb(color(i)));
+    }
+    return arr;
+  }
+var popColor = colCalc();
 
 
 
@@ -297,11 +344,12 @@ function Map(data,map_id){
                 var inf = this.I[yy][xx];
                 var rec = this.R[yy][xx];
                 //orange code: 	(255, 127, 0)
+                var ccol = popColor[parseInt(2*inf+2*rec)];
                 data[y * this.canvasWidth + x] =
                     (255   << 24) |    // alpha
-                    (value  << 16) |    // blue
-                    (value  + Math.floor(rec/2) <<  8) |    // green
-                    value + inf + rec;            // red
+                    (parseInt(value) + ccol.b  << 16) |    // blue
+                    (parseInt(value) + ccol.g  <<  8) |    // green
+                     parseInt(value)  + ccol.r;            // red
             }
         }
 
@@ -336,7 +384,9 @@ function Map(data,map_id){
                 .style('opacity', 0.8)
                 .style('top', mouseY + 5 + 'px') //d3.event.pageY
                 .style('left', mouseX + 5 + 'px') //d3.event.pageX
-                .html(Math.floor(obj.I[yy][xx]) + ' zombies');//this.I[mouseY][mouseX]);
+                .html(Math.floor(obj.S[yy][xx]) + ' susceptible\n' +
+                      Math.floor(obj.I[yy][xx]) + ' zombies\n' +
+                      Math.floor(obj.R[yy][xx])+ ' recovered\n');//this.I[mouseY][mouseX]);
                 //console.log(obj.I[mouseY][mouseX]);
 
         } else {
@@ -492,12 +542,13 @@ var tslider = $('#sim-speed').slider()
         })
 		.data('slider');
 
-var tauslider = $('#tau').slider()
+/*var tauslider = $('#tau').slider()
 		.on('change', function(){
         sim.params['tau'] =  Math.pow(2,tauslider.getValue());
         console.log(sim.params['tau']);
         })
 		.data('slider');
+*/
 
 var intslider = $('#int-slider').slider()
         .on('slide', function(){

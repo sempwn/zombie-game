@@ -34,8 +34,9 @@
 
             <h2 id="introduction">Introduction</h2>
 
-            <p>The task is to calculate the epidemiological parameters by comparing the
-            output of mathematical models to data.</p>
+            <p>The main task is to calculate the epidemiological parameters by comparing the
+            output of mathematical models to data and investigate what kinds of interventions
+            would be required in order to control the outbreak.</p>
 
 
 
@@ -94,10 +95,25 @@
             </p>
 
         <h2 id="modelfitting">Model fitting</h2>
+        <p>
+            In order to calculate the R0 and other values of interest, we need
+            some way of comparing a model to data. We can do this by looking
+            at the <strong>mean squared error</strong>.
+        </p>
+        <p>
+            Look at the example below. Here we have a simple model that has two
+            parameters: one that controls how steep the gradient of the output is
+            and another that controls where the output intersects at zero. The
+            mean squared error can be calculated by compaing each data point to the
+            model and squaring the difference. All these are averaged (and a
+            square root is also taken) to produce the mean squared error. The
+            important thing is that the best model parameters are the ones that
+            provide a smallest error.
+        </p>
         <div class="row justify-content-center">
             <div class="col-10">
-                <div class="form">
-                    <div class="form-group">
+                <div class="form col-6 col-offset-3">
+                    <div class="form-group justify-content-center">
                         <label>gradient</label>
                         <div class="input-group number-spinner">
                             <span class="input-group-btn data-dwn">
@@ -127,19 +143,43 @@
             </div>
         </div>
 
+        <h2 id="different models">Model comparisons</h2>
+
+        <p>
+            Diseases have many different modes of spreading either directly or
+            through another organism like a mosquito. Diseases also have quite
+            varied biological characteristics such as how long it can remain
+            in a host before they become infectious. We use models to explore
+            the consequences of these different phenomena and compare them to
+            data in order to provide evidence as to which one is correct.
+        </p>
+        <p>
+            A list of likely models for the pathogen are given below.
+        </p>
 
         <h3 id="directcontactmodel">Direct contact model</h3>
 
+        <p>
+        The simplest model we can consider is where the pathogen is spread
+        through direct contact with people who are infected. Also someone
+        who gets infected immediately becomes infectious themselves. Here's
+        what the model looks like:
+        </p>
+
         <div id="SIRdiagram" class="text-center"></div>
 
-        This produces an $R_0$ of
+        <p>It turns out from this model we can derive the $R_0$ as</p>
 
         <p>$$R_0 = \frac{\text{infectivity}}{\text{rate of recovery}}$$</p>
 
-        <p>It turns out there is a threshold and if we can vaccinate above this
-        then the pathogen is guaranteed to be eliminated:</p>
+        <p>For this and similar models there is a threshold and if we can
+            vaccinate above this then the pathogen is guaranteed to
+            be eliminated:</p>
 
         <p>$$1- \frac{1}{R_0}$$</p>
+
+        <p> As an example measles has an $R_0$ of about 13, which means optimal vaccination
+            coverage is 92%.</p>
 
 
         <h3 id="vectorbornemodel">Vector-borne model</h3>
@@ -162,17 +202,59 @@
 
         <div id="SEIRdiagram" class="text-center"></div>
 
-        <h3 id = "latentclassmodel">The math</h3>
+        <p>
+            The $R_0$ is the same as for the direct-contact model, but the
+            latent stage changes how quickly the epidemic advances
+        </p>
 
-        <p>If you're curious about the equations used for each of these models
-            then they are given below</p>
+        <h3>Modelling Tasks</h3>
+        <p>
+            Use the menu above to navigate to the different sections. Use the
+            <a href="./fitting.html">fitting </a>  section
+            to compare the models to data and work out what the best parameters
+            are that match the observed epidemic. Then use these parameters
+            to <a href="./simulation.html">simulate </a> what
+            might happen if an outbreak occurred in North America and what
+            interventions might be necessary to stop the outbreak.
+        </p>
 
-        <p>$$\frac{dx}{dt} = mabz(1-x) - rx$$
-        $$\frac{dz}{dt} = acx(e^{-g\nu} - z) - gz$$</p>
 
-        <p> This produces an $R_0$ of</p>
+        <h3 id = "latentclassmodel" data-toggle="collapse" data-target="#math-section" class="clickable">The math</h3>
+        <div id="math-section" class="accordion collapse">
 
-        <p>$$R_0 = \frac{ma^2bc}{gr}e^{-g\nu}$$</p>
+            <p>If you're curious about the equations used for each of these models
+                then they are given below.</p>
+
+            <h4> Direct-contact model </h4>
+
+            <p>$$\frac{dS}{dt} = -\beta SI$$
+            $$\frac{dI}{dt} = \beta SI - \gamma I$$</p>
+
+            <p> This produces an $R_0$ of</p>
+
+            <p>$$R_0 = \frac{\beta}{\gamma}$$</p>
+
+            <h4> Vector-borne model </h4>
+
+            <p>$$\frac{dx}{dt} = mabz(1-x) - rx$$
+            $$\frac{dz}{dt} = acx(e^{-g\nu} - z) - gz$$</p>
+
+            <p> This produces an $R_0$ of</p>
+
+            <p>$$R_0 = \frac{ma^2bc}{gr}e^{-g\nu}$$</p>
+
+            <h4> Latent-stage model </h4>
+
+            <p>
+                $$\frac{dS}{dt} = -\beta SI$$
+                $$\frac{dE}{dt} = \beta SI - \alpha E$$
+                $$\frac{dI}{dt} = \alpha E - \gamma I$$
+            </p>
+
+            <p> This produces an $R_0$ of</p>
+
+            <p>$$R_0 = \frac{\beta}{\gamma}$$</p>
+        </div>
 
         </div>
 
