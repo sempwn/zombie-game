@@ -450,5 +450,11 @@ window.onload = function () {
     modelOutput = params.model(params,maxT);
     plotGraph('SIRGraphDiv',modelOutput);
     updateStatistics(params,modelOutput);
+
+
     //plotStochGraph('StochSIRGraphDiv',multipleStochsticSIR(sparams,maxT,nreps));
 }
+
+$(document).ready(function(){
+    $('[data-toggle="tooltip"]').tooltip();
+});

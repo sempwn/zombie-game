@@ -410,4 +410,8 @@ d3.selectAll(".btn-info").on("click",function(){
     var m = parseFloat($('#mSelector').val());
     var c = parseFloat($('#cSelector').val());
     plotGraph("fitGraphDiv",genLine(m,c),lineData);
-})
+});
+
+$(document).ready(function(){
+    $('[data-toggle="tooltip"]').tooltip();
+});

@@ -32,11 +32,15 @@
         </nav>
     <div class="container">
 
-            <h2 id="introduction">Introduction</h2>
+            <h2 id="introduction">
+                Introduction
+            </h2>
 
-            <p>The main task is to calculate the epidemiological parameters by comparing the
-            output of mathematical models to data and investigate what kinds of interventions
-            would be required in order to control the outbreak.</p>
+            <p>
+                The main task is to calculate the epidemiological parameters by comparing the
+                output of mathematical models to data and investigate what kinds of interventions
+                would be required in order to control the outbreak.
+            </p>
 
 
 
@@ -45,7 +49,7 @@
 
             <h2 id="background">Background</h2>
             <p>One of the main goals in modelling of infectious diseases is
-            to be able to understand the Basic Reproduction Number or R0, but what
+            to be able to understand the Basic Reproduction Number or $R_0$, but what
             actually is it? The exact definition is:
             </p>
             <blockquote class="lead text-center">
@@ -59,11 +63,11 @@
                 infection on to two people. Then one of those people passes the
                 infection on to one other person and the other passes it on to
                 three people. On average each person infected two other people,
-                so we would estimate the R0 of that disease to be 2.
+                so we would estimate the $R_0$ of that disease to be 2.
             </p>
             <p>
                 Use the tool below to explore the consequences of different
-                R0 values. An epidemic is simulated for three generations and
+                $R_0$ values. An epidemic is simulated for three generations and
                 who infects who are connected by lines.
             </p>
             <div class="form-inline">
@@ -85,18 +89,18 @@
             </div>
             <div id="r0Diagram"></div>
             <p>
-                Notice that if R0 is below one then the epidemic is not likely
+                Notice that if $R_0$ is below one then the epidemic is not likely
                 to get to the third generation. If it's above one then this is
-                possible. It turns out after a long time, if the R0 is less than
+                possible. It turns out after a long time, if the $R_0$ is less than
                 one then the infection is guaranteed to die out, however if it
                 is bigger than one then there's a probability it will persist
-                and continue to become an epidemic. Estimating the R0 is therefore
+                and continue to become an epidemic. Estimating the $R_0$ is therefore
                 vitally important for public health intervention.
             </p>
 
         <h2 id="modelfitting">Model fitting</h2>
         <p>
-            In order to calculate the R0 and other values of interest, we need
+            In order to calculate the $R_0$ and other values of interest, we need
             some way of comparing a model to data. We can do this by looking
             at the <strong>mean squared error</strong>.
         </p>
@@ -104,11 +108,11 @@
             Look at the example below. Here we have a simple model that has two
             parameters: one that controls how steep the gradient of the output is
             and another that controls where the output intersects at zero. The
-            mean squared error can be calculated by compaing each data point to the
+            mean squared error can be calculated by comparing each data point to the
             model and squaring the difference. All these are averaged (and a
             square root is also taken) to produce the mean squared error. The
             important thing is that the best model parameters are the ones that
-            provide a smallest error.
+            provides the smallest error.
         </p>
         <div class="row justify-content-center">
             <div class="col-10">
@@ -168,18 +172,24 @@
 
         <div id="SIRdiagram" class="text-center"></div>
 
-        <p>It turns out from this model we can derive the $R_0$ as</p>
+        <p>It turns out from this model if we know the infectivity (how many people on average one person infects someone else in a day)
+            and the rate of recovery (how fast it takes to no longer be infectious) we can derive the $R_0$ as</p>
 
         <p>$$R_0 = \frac{\text{infectivity}}{\text{rate of recovery}}$$</p>
 
-        <p>For this and similar models there is a threshold and if we can
+        <p>Many interventions exist at reducing the effective size of the $R_0$
+            such as the use of antibiotics, taking preventative medicines (prophylaxis)
+             or hand washing. For the zombie outbreak we can ask if a vaccine were
+             introduced then how many people would need the vaccine before the outbreak
+             is contained. For this and similar models there is a threshold and if we can
             vaccinate above this then the pathogen is guaranteed to
             be eliminated:</p>
 
         <p>$$1- \frac{1}{R_0}$$</p>
 
         <p> As an example measles has an $R_0$ of about 13, which means optimal vaccination
-            coverage is 92%.</p>
+            coverage is 92%. This means that in order for there to not be an
+        outbreak of measles, the vaccination coverage needs to be very high.</p>
 
 
         <h3 id="vectorbornemodel">Vector-borne model</h3>
@@ -281,11 +291,13 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
 
-    <script src="./js/flowcharts.js"></script>
+
 
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+
+    <script src="./js/flowcharts.js"></script>
 
     <script type="text/x-mathjax-config">
         MathJax.Hub.Config({
