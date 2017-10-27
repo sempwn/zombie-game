@@ -531,6 +531,19 @@ d3.selectAll('.btn-intervention').on('click',function(d){
                       'treat':'treat infected population' }
     console.log(this.getAttribute("data-int"));
     var intervention = this.getAttribute("data-int");
+    if (sim.params.intervention[intervention]){
+        intslider.setValue(sim.params.intervention[intervention]*100);
+        $("#int-info").html('<div class="alert alert-info" role="alert" >Coverage set to ' +
+                            sim.params.intervention[intervention]*100 +
+                           '%.</div>');
+    } else {
+        intslider.setValue(50);
+        $("#int-info").html('');
+    }
+
+
+
+
     d3.select("#begin-intervention").attr("data-int",intervention);
     d3.select("#intModal-title").text("Set intervention: "+ intlabel[intervention]);
     $('#intModal').modal('show');

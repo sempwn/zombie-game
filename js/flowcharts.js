@@ -414,4 +414,7 @@ d3.selectAll(".btn-info").on("click",function(){
 
 $(document).ready(function(){
     $('[data-toggle="tooltip"]').tooltip();
+    var easter_egg = new Konami(function(){
+            window.location.href ='https://www.youtube.com/watch?v=sOnqjkJTMaA#t=4m42s';
+    });
 });
